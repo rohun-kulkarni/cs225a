@@ -3,6 +3,7 @@
 #include "timer/LoopTimer.h"
 
 #include <iostream>
+#include <fstream>
 #include <string>
 
 using namespace std;
@@ -36,7 +37,7 @@ int main() {
 	You can input your joint information and read sensor data C++ style "<<" or ">>". Make sure you only 
 	expect to read or are writing #D.O.F. number of values.
 	*/
-	robot->_q << 0, 0.6, M_PI/3; // Joint 1,2,3 Coordinates (radians, meters, radians)
+	robot->_q << M_PI/2, 1.0, -M_PI/2; // Joint 1,2,3 Coordinates (radians, meters, radians)
 	robot->_dq << 0, 0, 0; // Joint 1,2,3 Velocities (radians/sec, meters/sec, radians/sec), not used here
 
 	/* 
@@ -64,7 +65,7 @@ int main() {
 	// ---------------------------------------------------------------------------------------
 	//    -----------------    YOU WILL NEED TO CHANGE THIS ONE  -----------------------------
 	// ---------------------------------------------------------------------------------------
-	Eigen::Vector3d ee_pos_in_link = Eigen::Vector3d(0.0, 0.0, 0.0); 
+	Eigen::Vector3d ee_pos_in_link = Eigen::Vector3d(0.0, 0.0, 1.0); 
 	
 	Eigen::Vector3d ee_position = Eigen::Vector3d::Zero(); // 3d vector of zeros to fill with the end effector position
 	Eigen::MatrixXd ee_jacobian(3,dof); // Empty Jacobian Matrix sized to right size
@@ -88,6 +89,104 @@ int main() {
 	setting redis keys for display update if needed and don't forget robot->updateModel()! 
 	We'll have a logger for you later to dump redis values at whatever rate you choose
 	*/
+
+	// Set up output stream
+	ofstream mfiletheta ("MfileTh.txt");
+	ofstream gfiletheta("GfileTh.txt");
+
+
+	// Fix theta1 = 0, d2 = 1.0
+	// theta2 = -90 to 90 degrees
+	for (double th = -M_PI/2.0; th <= M_PI/2.0; th = th + M_PI / 16.0)
+	{
+		robot->_q << 0.0, 1.0, th;
+		robot->updateModel();
+		robot->position(ee_position, ee_link_name, ee_pos_in_link);
+		robot->Jv(ee_jacobian,ee_link_name,ee_pos_in_link);
+		robot->gravityVector(g);
+		
+		redis_client.setEigenMatrixJSON(JOINT_ANGLES_KEY,robot->_q);
+		redis_client.setEigenMatrixJSON(JOINT_VELOCITIES_KEY, robot->_dq);
+
+		//print gravity vector to file. 
+		gfiletheta << th; 
+		gfiletheta << "		";
+		gfiletheta << g(0);
+		gfiletheta << "		";
+		gfiletheta << g(1);
+		gfiletheta << "		";
+		gfiletheta << g(2);
+		gfiletheta  << endl;
+		
+		mfiletheta << th;
+		mfiletheta << " 	";
+		// print m11, m12, m13 to t file
+		mfiletheta << robot->_M(0,0);
+		mfiletheta << "		";
+
+		mfiletheta << robot->_M(0,1);
+		mfiletheta << "		";
+		mfiletheta << robot->_M(0,2) << endl;
+
+		//robot->gravityVector(g); 
+		//output_file << endl << g.transpose() << endl;
+	}
+	mfiletheta.close();
+	gfiletheta.close();
+
+	// Set up files for iterating over d2 range.
+
+	ofstream mfiled2 ("MfileD2.txt");
+	ofstream gfiled2("GfileD2.txt");
+	// Fix theta1 = 0, th3 = 0
+	// d2 = 0 to 2 degrees
+	for (double d2 = 0; d2 <= 2.0; d2 = d2 + 0.1)
+	{
+		robot->_q << 0.0, d2, 0;
+		robot->updateModel();
+		robot->position(ee_position, ee_link_name, ee_pos_in_link);
+		robot->Jv(ee_jacobian,ee_link_name,ee_pos_in_link);
+		robot->gravityVector(g);
+		redis_client.setEigenMatrixJSON(JOINT_ANGLES_KEY,robot->_q);
+		redis_client.setEigenMatrixJSON(JOINT_VELOCITIES_KEY, robot->_dq);
+		
+		//print gravity vector to file.
+		gfiled2 << d2; 
+		gfiled2 << "		";
+		gfiled2 << g(0);
+		gfiled2<< "		";
+		gfiled2 << g(1);
+		gfiled2  << "		";
+		gfiled2  << g(2);
+		gfiled2 << endl;
+		
+		mfiled2 << d2;
+		mfiled2 << "	";
+		// print m11, m12, m13 to t file
+		mfiled2 << robot->_M(0,0);
+		mfiled2 << "	";
+
+		mfiled2 << robot->_M(0,1);
+		mfiled2 << "	";
+		mfiled2 << robot->_M(0,2) << endl;
+
+		//robot->gravityVector(g); 
+		//output_file << endl << g.transpose() << endl;
+	}
+	mfiled2.close();
+	gfiled2.close();
+
+
+
+
+
+
+
+
+	
+
+
+
 
     return 0;
 }
