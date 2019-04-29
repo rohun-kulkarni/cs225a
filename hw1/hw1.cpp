@@ -11,7 +11,7 @@
 #define QUESTION_3   3
 #define QUESTION_4   4
 #define QUESTION_5   5
-
+#define QUESTION_6   6
 #define DEG2RAD M_PI/180.0
 // handle ctrl-c nicely
 #include <signal.h>
@@ -71,6 +71,7 @@ int main() {
 	ofstream c3file("controller3.txt");
 	ofstream c4file("controller4.txt");
 	ofstream c5file("controller5.txt");
+	ofstream c6file("controller6.txt");
 
 
 
